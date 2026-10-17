@@ -105,6 +105,8 @@ source-labeled GHCR image with an `image-release` receipt. Promote that digest
 in `sportwizzard-ops/deployment/releases/api.yaml` to deploy through Ops.
 Production placement, resource limits and credentials references belong there.
 Publishing the npm launcher below does not update the hosted container.
+The container build reuses intermediate layers from a dedicated GHCR
+BuildKit cache tag; only the SHA-tagged image digest is the release artifact.
 
 Publishing is a manual GitHub Actions release. First bump `version` in `package.json`, update `package-lock.json` with `npm install --package-lock-only`, synchronize `server.json`, and merge the change to `main`. Then run **Publish npm package** from the repository's Actions tab with `main` selected. The build job verifies package/lock/registry metadata and the unused version, installs dependencies without lifecycle scripts, builds once, and packs a tarball. It installs that tarball in a disposable consumer and runs the mock stdio smoke below. A separate publish job receives OIDC permission, verifies the tarball checksum, and publishes those exact bytes with lifecycle scripts disabled; it does not check out source or install application dependencies. The workflow retains the tarball and smoke receipt and does not run on pushes.
 
