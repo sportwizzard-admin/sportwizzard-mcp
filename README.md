@@ -101,7 +101,8 @@ SPORTWIZZARD_MOCK=1 node dist/index.js   # or set SPORTWIZZARD_API_KEY
 
 The hosted HTTP service has a separate container publisher:
 `publish-container.yml` runs on `main`, builds tracked source, and publishes a
-source-labeled GHCR image with an `image-release` receipt. Promote that digest
+source-labeled GHCR image with a standard
+`release-receipt-publish-container-<sha>` artifact. Promote that digest
 in `sportwizzard-ops/deployment/releases/api.yaml` to deploy through Ops.
 Production placement, resource limits and credentials references belong there.
 Publishing the npm launcher below does not update the hosted container.
