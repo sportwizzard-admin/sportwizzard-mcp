@@ -59,16 +59,31 @@ jobs:
             --tag "$image:sha-$GITHUB_SHA" \
             --metadata-file "$metadata" --push "$RUNNER_TEMP/image-source"
           digest="$(jq -er '."containerimage.digest" | select(test("^sha256:[0-9a-f]{64}$"))' "$metadata")"
-          printf 'image_ref=%s@%s\nsource_revision=%s\n' "$image" "$digest" "$GITHUB_SHA" > "$RUNNER_TEMP/image-release.txt"
+          receipt_dir="$RUNNER_TEMP/release-receipt"
+          receipt="$receipt_dir/release-receipt.json"
+          mkdir -p "$receipt_dir"
+          jq -n \
+            --arg repository "$GITHUB_REPOSITORY" --arg revision "$GITHUB_SHA" \
+            --arg publisher publish-container.yml \
+            --arg run_id "$GITHUB_RUN_ID" --arg run_attempt "$GITHUB_RUN_ATTEMPT" \
+            --arg sha "$image@$digest" \
+            '{schema:"sportwizzard.release-receipt/v1",repository:$repository,revision:$revision,publisher:$publisher,run_id:$run_id,run_attempt:$run_attempt,images:{sha:$sha},checks:{}}' \
+            > "$receipt"
+          jq -e '(.revision | test("^[0-9a-f]{40}$")) and (.images | length > 0) and all(.images[]; test("^ghcr\\.io/[a-z0-9-]+/[a-z0-9._/-]+@sha256:[0-9a-f]{64}$"))' "$receipt" >/dev/null || {
+            echo 'Release receipt contains an image reference that is not an immutable GHCR digest' >&2
+            exit 1
+          }
           {
             echo '## Published image'
-            cat "$RUNNER_TEMP/image-release.txt"
+            printf 'image_ref=%s@%s\nsource_revision=%s\n' "$image" "$digest" "$GITHUB_SHA"
+            printf 'Release receipt: `release-receipt-publish-container-%s` artifact.\n' "$GITHUB_SHA"
             echo 'Promote this digest in the owning Ops release file to deploy it.'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Retain the immutable publication receipt
+      - name: Upload the standard release receipt
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: image-release
-          path: ${{ runner.temp }}/image-release.txt
+          name: release-receipt-publish-container-${{ github.sha }}
+          path: ${{ runner.temp }}/release-receipt/release-receipt.json
+          if-no-files-found: error
           retention-days: 90
