@@ -8,6 +8,8 @@ on:
 permissions:
   contents: read
   packages: write
+  actions: read
+  pull-requests: read
 
 concurrency:
   group: sportwizzard-mcp-image
@@ -24,6 +26,13 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+
+      - name: Look for a passing pull-request check of this exact tree
+        id: pr_check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: bash .github/scripts/pr-check-evidence.sh ci.yml "$GITHUB_SHA"
 
       - name: Set up Buildx
         id: buildx
@@ -45,6 +54,7 @@ jobs:
       - name: Publish immutable image and release identity
         env:
           BUILDER_NAME: ${{ steps.buildx.outputs.name }}
+          PR_RUN: ${{ steps.pr_check.outputs.run_id }}
         shell: bash
         run: |
           set -euo pipefail
@@ -66,8 +76,9 @@ jobs:
             --arg repository "$GITHUB_REPOSITORY" --arg revision "$GITHUB_SHA" \
             --arg publisher publish-container.yml \
             --arg run_id "$GITHUB_RUN_ID" --arg run_attempt "$GITHUB_RUN_ATTEMPT" \
-            --arg sha "$image@$digest" \
-            '{schema:"sportwizzard.release-receipt/v1",repository:$repository,revision:$revision,publisher:$publisher,run_id:$run_id,run_attempt:$run_attempt,images:{sha:$sha},checks:{}}' \
+            --arg sha "$image@$digest" --arg pr_run "$PR_RUN" \
+            '{schema:"sportwizzard.release-receipt/v1",repository:$repository,revision:$revision,publisher:$publisher,run_id:$run_id,run_attempt:$run_attempt,images:{sha:$sha},
+              checks:(if $pr_run == "" then {} else {"pr-check": "passed (run \($pr_run))"} end)}' \
             > "$receipt"
           jq -e '(.revision | test("^[0-9a-f]{40}$")) and (.images | length > 0) and all(.images[]; test("^ghcr\\.io/[a-z0-9-]+/[a-z0-9._/-]+@sha256:[0-9a-f]{64}$"))' "$receipt" >/dev/null || {
             echo 'Release receipt contains an image reference that is not an immutable GHCR digest' >&2
@@ -77,6 +88,11 @@ jobs:
             echo '## Published image'
             printf 'image_ref=%s@%s\nsource_revision=%s\n' "$image" "$digest" "$GITHUB_SHA"
             printf 'Release receipt: `release-receipt-publish-container-%s` artifact.\n' "$GITHUB_SHA"
+            if [[ -n "$PR_RUN" ]]; then
+              printf 'Pull-request check run %s passed on this exact tree.\n' "$PR_RUN"
+            else
+              echo 'No passing pull-request check of this exact tree was found; this publisher runs no test suite.'
+            fi
             echo 'Promote this digest in the owning Ops release file to deploy it.'
           } >> "$GITHUB_STEP_SUMMARY"
 
