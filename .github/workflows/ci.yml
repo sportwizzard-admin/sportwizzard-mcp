@@ -1,0 +1,106 @@
+name: PR check
+run-name: "PR #${{ github.event.pull_request.number }} check (merge ${{ github.sha }})"
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-check-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: Build, pack and stdio-smoke the package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out the pull-request test merge
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Check package, lock and registry metadata agree
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import { readFileSync } from 'node:fs';
+          const pkg = JSON.parse(readFileSync('package.json'));
+          const lock = JSON.parse(readFileSync('package-lock.json'));
+          const registry = JSON.parse(readFileSync('server.json'));
+          assert.equal(pkg.name, 'sportwizzard-mcp');
+          assert.equal(pkg.repository.url, 'git+https://github.com/sportwizzard-admin/sportwizzard-mcp.git');
+          assert.match(pkg.version, /^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$/);
+          assert.equal(lock.version, pkg.version);
+          assert.equal(lock.packages[''].version, pkg.version);
+          assert.equal(registry.version, pkg.version);
+          assert.equal(registry.packages.find(p => p.registryType === 'npm').version, pkg.version);
+          JS
+
+      - name: Install dependencies and build
+        run: |
+          npm ci --ignore-scripts
+          npm run build
+
+      - name: Pack, install in a disposable consumer and run the mock stdio smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          release="$RUNNER_TEMP/npm-release"
+          mkdir -p "$release"
+          npm pack --ignore-scripts --pack-destination "$release"
+          mv "$release"/*.tgz "$release/package.tgz"
+          npm install --prefix "$RUNNER_TEMP/npm-consumer" --omit=dev --ignore-scripts --no-audit --no-fund "$release/package.tgz"
+          npm run smoke -- "$RUNNER_TEMP/npm-consumer/node_modules/sportwizzard-mcp/dist/index.js" "$release/smoke.json" "$release/package.tgz"
+
+  image:
+    name: Build the container image without pushing
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Check out the pull-request test merge
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+        with:
+          driver: docker-container
+
+      - name: Assemble tracked source only
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/image-source"
+          git archive "$GITHUB_SHA" | tar -x -C "$RUNNER_TEMP/image-source"
+
+      - name: Authenticate read-only to the build cache
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+
+      - name: Build the publisher's image (no push, no cache export)
+        env:
+          BUILDER_NAME: ${{ steps.buildx.outputs.name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          image=ghcr.io/${GITHUB_REPOSITORY}
+          docker buildx build --builder "$BUILDER_NAME" --platform linux/amd64 \
+            --cache-from "type=registry,ref=$image:buildcache-container" \
+            --output type=cacheonly "$RUNNER_TEMP/image-source"
