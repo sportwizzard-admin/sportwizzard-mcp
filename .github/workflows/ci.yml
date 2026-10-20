@@ -70,18 +70,18 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
-      packages: read
     steps:
       - name: Check out the pull-request test merge
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
 
-      - name: Set up Buildx
+      - name: Use the runner host's persistent BuildKit
         id: buildx
         uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
         with:
-          driver: docker-container
+          driver: remote
+          endpoint: unix:///run/sw-ci-buildkit/buildkitd.sock
 
       - name: Assemble tracked source only
         run: |
@@ -89,18 +89,11 @@ jobs:
           mkdir -p "$RUNNER_TEMP/image-source"
           git archive "$GITHUB_SHA" | tar -x -C "$RUNNER_TEMP/image-source"
 
-      - name: Authenticate read-only to the build cache
-        env:
-          GHCR_TOKEN: ${{ github.token }}
-        run: printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
-
-      - name: Build the publisher's image (no push, no cache export)
+      - name: Build the publisher's image (no push)
         env:
           BUILDER_NAME: ${{ steps.buildx.outputs.name }}
         shell: bash
         run: |
           set -euo pipefail
-          image=ghcr.io/${GITHUB_REPOSITORY}
           docker buildx build --builder "$BUILDER_NAME" --platform linux/amd64 \
-            --cache-from "type=registry,ref=$image:buildcache-container" \
             --output type=cacheonly "$RUNNER_TEMP/image-source"
