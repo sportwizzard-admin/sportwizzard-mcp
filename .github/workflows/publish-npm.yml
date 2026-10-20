@@ -13,7 +13,7 @@ concurrency:
 jobs:
   build:
     if: github.ref == 'refs/heads/main'
-    runs-on: [self-hosted, Linux, X64, sportwizzard-ci]
+    runs-on: [self-hosted, Linux, sportwizzard-ci]
     timeout-minutes: 15
     permissions:
       contents: read
@@ -110,7 +110,7 @@ jobs:
   publish:
     needs: build
     if: github.ref == 'refs/heads/main'
-    runs-on: [self-hosted, Linux, X64, sportwizzard-ci]
+    runs-on: [self-hosted, Linux, sportwizzard-ci]
     timeout-minutes: 5
     permissions:
       contents: read
