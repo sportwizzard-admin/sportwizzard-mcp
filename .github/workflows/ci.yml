@@ -15,7 +15,7 @@ concurrency:
 jobs:
   package:
     name: Build, pack and stdio-smoke the package
-    runs-on: [self-hosted, Linux, X64, sportwizzard-ci]
+    runs-on: [self-hosted, Linux, sportwizzard-ci]
     timeout-minutes: 15
     steps:
       - name: Check out the pull-request test merge
@@ -66,7 +66,7 @@ jobs:
 
   image:
     name: Build the container image without pushing
-    runs-on: [self-hosted, Linux, X64, sportwizzard-ci]
+    runs-on: [self-hosted, Linux, sportwizzard-ci]
     timeout-minutes: 20
     permissions:
       contents: read

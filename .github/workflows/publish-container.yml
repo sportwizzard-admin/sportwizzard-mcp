@@ -18,7 +18,7 @@ concurrency:
 jobs:
   publish:
     if: github.ref == 'refs/heads/main'
-    runs-on: [self-hosted, Linux, X64, sportwizzard-ci]
+    runs-on: [self-hosted, Linux, sportwizzard-ci]
     timeout-minutes: 20
     steps:
       - name: Check out the exact approved source
