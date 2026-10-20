@@ -13,7 +13,7 @@ concurrency:
 jobs:
   build:
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, Linux, X64, sportwizzard-ci]
     timeout-minutes: 15
     permissions:
       contents: read
@@ -34,7 +34,14 @@ jobs:
           package-manager-cache: false
 
       - name: Install npm with trusted publishing support
-        run: npm install --global npm@11.15.0 --ignore-scripts
+        # The setup-node tool cache persists on the self-hosted runner; keep the
+        # job's npm out of it.
+        shell: bash
+        run: |
+          set -euo pipefail
+          prefix="$RUNNER_TEMP/npm-global"
+          npm install --global --prefix "$prefix" npm@11.15.0 --ignore-scripts
+          echo "$prefix/bin" >> "$GITHUB_PATH"
 
       - name: Validate package and unused version
         shell: bash
@@ -103,7 +110,7 @@ jobs:
   publish:
     needs: build
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, Linux, X64, sportwizzard-ci]
     timeout-minutes: 5
     permissions:
       contents: read
@@ -117,7 +124,14 @@ jobs:
           package-manager-cache: false
 
       - name: Install the publishing CLI without lifecycle scripts
-        run: npm install --global npm@11.15.0 --ignore-scripts
+        # The setup-node tool cache persists on the self-hosted runner; keep the
+        # job's npm out of it.
+        shell: bash
+        run: |
+          set -euo pipefail
+          prefix="$RUNNER_TEMP/npm-global"
+          npm install --global --prefix "$prefix" npm@11.15.0 --ignore-scripts
+          echo "$prefix/bin" >> "$GITHUB_PATH"
 
       - name: Download this run's verified package
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
