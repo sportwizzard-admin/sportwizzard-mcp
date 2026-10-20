@@ -19,7 +19,7 @@ RUN npm run build
 FROM --platform=$BUILDPLATFORM node:20-alpine AS runtime-deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+RUN npm ci --omit=dev --ignore-scripts
 
 FROM node:20-alpine
 WORKDIR /app
