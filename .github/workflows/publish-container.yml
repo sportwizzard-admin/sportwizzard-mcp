@@ -12,8 +12,9 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: sportwizzard-mcp-image
-  cancel-in-progress: false
+  # A newer main commit supersedes an older publish still running.
+  group: publish-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   publish:
