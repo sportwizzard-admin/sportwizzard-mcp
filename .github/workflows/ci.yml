@@ -13,6 +13,43 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Find the changed inputs
+    runs-on: [self-hosted, Linux, sportwizzard-ci]
+    timeout-minutes: 5
+    outputs:
+      image: ${{ steps.diff.outputs.image }}
+    steps:
+      - name: Check out the pull-request test merge and its base
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      # The test merge's first parent is the tip of main, so this lists exactly
+      # what merging the pull request would change. A skipped job counts as
+      # passed, so the run still reports success.
+      - name: Compare the test merge with main
+        id: diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --name-only -z HEAD^1 HEAD > "$RUNNER_TEMP/changed-files"
+          image=false
+          while IFS= read -r -d '' path; do
+            # Everything the image build reads, plus CI files.
+            # publish-container.yml lists the same paths.
+            case "$path" in
+              Dockerfile|.dockerignore|package.json|package-lock.json|tsconfig.json|src/*|.github/*) image=true ;;
+            esac
+          done < "$RUNNER_TEMP/changed-files"
+          printf 'image=%s\n' "$image" | tee -a "$GITHUB_OUTPUT"
+          {
+            printf '## Changed inputs\nImage build: %s.\n\n```\n' "$image"
+            tr '\0' '\n' < "$RUNNER_TEMP/changed-files"
+            printf '```\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+
   package:
     name: Build, pack and stdio-smoke the package
     runs-on: [self-hosted, Linux, sportwizzard-ci]
@@ -64,8 +101,15 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/npm-consumer" --omit=dev --ignore-scripts --no-audit --no-fund "$release/package.tgz"
           npm run smoke -- "$RUNNER_TEMP/npm-consumer/node_modules/sportwizzard-mcp/dist/index.js" "$release/smoke.json" "$release/package.tgz"
 
+      # dist/httpServer.js is the container's entry point (the hosted server).
+      - name: Start the hosted HTTP entry point against the mock API
+        shell: bash
+        run: npm run smoke:http -- "$RUNNER_TEMP/npm-consumer/node_modules/sportwizzard-mcp/dist/httpServer.js" "$RUNNER_TEMP/npm-release/http-smoke.json"
+
   image:
     name: Build the container image without pushing
+    needs: changes
+    if: needs.changes.outputs.image == 'true'
     runs-on: [self-hosted, Linux, sportwizzard-ci]
     timeout-minutes: 20
     permissions:

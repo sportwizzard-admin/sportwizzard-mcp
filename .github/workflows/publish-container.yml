@@ -3,6 +3,16 @@ name: Publish SportWizzard MCP image
 on:
   push:
     branches: [main]
+    # The image inputs; ci.yml builds the PR image for the same paths.
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - package.json
+      - package-lock.json
+      - tsconfig.json
+      - src/**
+      - .github/workflows/publish-container.yml
+      - .github/scripts/pr-check-evidence.sh
   workflow_dispatch:
 
 permissions:
