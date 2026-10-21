@@ -7,7 +7,7 @@
     "url": "https://github.com/sportwizzard/sportwizzard-mcp",
     "source": "github"
   },
-  "version": "0.3.1",
+  "version": "0.3.2",
   "remotes": [
     {
       "type": "streamable-http",
@@ -27,7 +27,7 @@
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "sportwizzard-mcp",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "transport": {
         "type": "stdio"
       },

@@ -1,6 +1,6 @@
 {
   "name": "sportwizzard-mcp",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Model Context Protocol (MCP) server for the SportWizzard sports-betting data API \u2014 query live odds, edges, arbitrage, player/team stats and reference data from any MCP-capable AI agent.",
   "license": "MIT",
   "author": "SportWizzard LLC",
