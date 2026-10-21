@@ -6,7 +6,7 @@
 # The published image is linux/amd64, but CI may build on an ARM64 runner.
 # These packages have no install scripts or native modules, so npm runs on the
 # build machine's own platform ($BUILDPLATFORM) and the amd64 stage only copies.
-FROM --platform=$BUILDPLATFORM node:20-alpine AS build
+FROM --platform=$BUILDPLATFORM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 # --ignore-scripts: the "prepare" script (npm run build) can't run yet — src/
@@ -16,12 +16,12 @@ COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build
 
-FROM --platform=$BUILDPLATFORM node:20-alpine AS runtime-deps
+FROM --platform=$BUILDPLATFORM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS runtime-deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts
 
-FROM node:20-alpine
+FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293
 WORKDIR /app
 ENV NODE_ENV=production
 COPY package.json package-lock.json ./
