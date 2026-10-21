@@ -1,0 +1,24 @@
+# Base images are pinned by digest so their cached amd64 layers rebuild only
+# when the pin changes. Dependabot proposes new digests for the same tags (and
+# patch tags) once a week, so security updates arrive at a known time. Major
+# and minor tag changes, such as a new Python or Node release, are left to a
+# deliberate upgrade.
+version: 2
+updates:
+  - package-ecosystem: docker
+    directories:
+      - "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Los_Angeles
+    groups:
+      base-images:
+        patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+    commit-message:
+      prefix: "Base images"
+    open-pull-requests-limit: 2
