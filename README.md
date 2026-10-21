@@ -92,7 +92,7 @@ Notes: winner/award markets are categorical (one `YES` selection per competitor,
 ## From source
 
 ```bash
-git clone https://github.com/sportwizzard-admin/sportwizzard-mcp.git
+git clone https://github.com/sportwizzard/sportwizzard-mcp.git
 cd sportwizzard-mcp && npm install && npm run build
 SPORTWIZZARD_MOCK=1 node dist/index.js   # or set SPORTWIZZARD_API_KEY
 ```
@@ -139,7 +139,7 @@ forwarding on a tool call and a clean exit on SIGTERM:
 npm run smoke:http -- "$release_dir/consumer/node_modules/sportwizzard-mcp/dist/httpServer.js" "$release_dir/http-smoke.json"
 ```
 
-The new-owner npm trusted-publisher connection is qualified. Release `sportwizzard-mcp@0.2.1` was published from `main` commit `1803bacf251f25be96330de97e422860c17760fe` by [workflow run 38657304480](https://github.com/sportwizzard-admin/sportwizzard-mcp/actions/runs/38657304480). Its mock stdio package smoke passed, and npm's SLSA provenance binds the artifact to this repository, `publish-npm.yml`, `refs/heads/main`, and that commit. The published artifact integrity matched both the retained workflow artifact and the provenance subject; npm signature verification reported no invalid or missing signatures. Future releases still use the manual **Publish npm package** workflow on `main`. The previous `adamruehle/sportwizzard-mcp` trusted-publisher connection does not transfer and is not needed for new-owner publishing.
+The new-owner npm trusted-publisher connection is qualified. Release `sportwizzard-mcp@0.2.1` was published from `main` commit `1803bacf251f25be96330de97e422860c17760fe` by [workflow run 38657304480](https://github.com/sportwizzard-admin/sportwizzard-mcp/actions/runs/38657304480). Its mock stdio package smoke passed, and npm's SLSA provenance binds the artifact to this repository, `publish-npm.yml`, `refs/heads/main`, and that commit. The published artifact integrity matched both the retained workflow artifact and the provenance subject; npm signature verification reported no invalid or missing signatures. Future releases still use the manual **Publish npm package** workflow on `main`. On 2026-10-21 the repository moved to the `sportwizzard` organization; the npm trusted publisher must name `sportwizzard/sportwizzard-mcp` and `publish-npm.yml` before the next release, and CI now runs on GitHub-hosted runners because the repository is public. The previous `adamruehle/sportwizzard-mcp` trusted-publisher connection does not transfer and is not needed for new-owner publishing.
 
 To refresh local npm CLI access, use `npx --yes npm@11 login`, then confirm the identity with `npm whoami`. The installed npm 10 login command crashes in the maintainer environment; npm 11 login is the working refresh path. On Adam's workstation, `~/.npmrc` points to `~/.local/state/sportwizzard/npm/npmrc` (private directory `0700`, file `0600`). Do not recreate the legacy account-secrets path. Keep the symlink and target local, never print or commit the file contents, and do not copy its token into the repository or a Local Agent. The October 16 migration preserved the file bytes, but both pre- and post-migration identity checks returned 401; local CLI reauthentication remains outstanding. Workflow publishing uses separate short-lived OIDC credentials and needs no npm token secret.
 
