@@ -49,7 +49,9 @@ const origin = `http://127.0.0.1:${port}`;
 
 let output = '';
 const child = spawn(process.execPath, [resolve(entryArgument)], {
-  env: { PATH: process.env.PATH, MCP_HTTP_PORT: String(port), SPORTWIZZARD_BASE_URL: baseUrl },
+  // NODE_ENV matches the image's ENV.
+  env: { PATH: process.env.PATH, NODE_ENV: 'production', MCP_HTTP_PORT: String(port),
+    SPORTWIZZARD_BASE_URL: baseUrl },
   stdio: ['ignore', 'pipe', 'pipe'],
 });
 child.stdout.on('data', chunk => { output += chunk; });
@@ -86,7 +88,9 @@ try {
     } catch {
       // Not listening yet.
     }
-    if (child.exitCode !== null) throw new Error(`entry point exited before listening:\n${output}`);
+    if (child.exitCode !== null || child.signalCode !== null) {
+      throw new Error(`entry point exited before listening:\n${output}`);
+    }
     await new Promise(done => setTimeout(done, 50));
   }
   const healthBody = JSON.parse(health.text);
@@ -98,9 +102,12 @@ try {
   assert.equal(requests.length, 0, 'a request without a key must not reach the API');
   const wrongKey = await raw('POST', '/mcp', { ...mcpHeaders, Authorization: 'Bearer wrong-key' }, initialize);
   assert.equal(wrongKey.status, 401, 'a key the API rejects must be rejected');
+  assert.deepEqual(requests, [{ url: '/api/v1/account/usage', key: 'wrong-key' }],
+    'the wrong key must be rejected by the API, not by the missing-key check');
   const foreignHost = await raw('POST', '/mcp',
     { ...mcpHeaders, Host: 'attacker.example', Authorization: `Bearer ${validKey}` }, initialize);
   assert.equal(foreignHost.status, 403, 'a Host header outside the allow list must be refused');
+  assert.equal(requests.length, 1, 'the Host check must refuse before the key check');
   assert.equal((await raw('GET', '/mcp')).status, 405);
 
   const installedPackage = JSON.parse(await readFile(
@@ -129,7 +136,7 @@ try {
   assert.equal(stopped.code, 0, `entry point must exit cleanly on SIGTERM: ${JSON.stringify(stopped)}`);
 
   const receipt = { result: 'passed', node: process.version,
-    environment: 'installed npm tarball; dist/httpServer.js (the container entry point) over Streamable HTTP; loopback mock API and dummy fixture key; no production API or credentials',
+    environment: 'installed npm tarball with locked runtime dependencies; dist/httpServer.js (the container entry point) with NODE_ENV=production over Streamable HTTP; loopback mock API and dummy fixture key; no production API or credentials',
     command: 'npm run smoke:http -- HTTP_ENTRY RECEIPT_PATH',
     package_version: installedPackage.version, server: client.getServerVersion(),
     tools_list_count: tools.length, api_requests: requests.map(item => item.url),

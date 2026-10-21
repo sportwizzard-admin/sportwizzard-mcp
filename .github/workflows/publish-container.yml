@@ -3,7 +3,7 @@ name: Publish SportWizzard MCP image
 on:
   push:
     branches: [main]
-    # The image inputs; ci.yml builds the PR image for the same paths.
+    # The image inputs, which ci.yml also uses to decide on the PR image build.
     paths:
       - Dockerfile
       - .dockerignore

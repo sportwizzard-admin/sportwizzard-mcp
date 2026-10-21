@@ -27,18 +27,19 @@ jobs:
           persist-credentials: false
 
       # The test merge's first parent is the tip of main, so this lists exactly
-      # what merging the pull request would change. A skipped job counts as
-      # passed, so the run still reports success.
+      # what merging the pull request would change (--no-renames keeps the old
+      # path of a moved file). A skipped job counts as passed, so the run still
+      # reports success.
       - name: Compare the test merge with main
         id: diff
         shell: bash
         run: |
           set -euo pipefail
-          git diff --name-only -z HEAD^1 HEAD > "$RUNNER_TEMP/changed-files"
+          git diff --no-renames --name-only -z HEAD^1 HEAD > "$RUNNER_TEMP/changed-files"
           image=false
           while IFS= read -r -d '' path; do
-            # Everything the image build reads, plus CI files.
-            # publish-container.yml lists the same paths.
+            # Everything the image build reads, plus CI files. publish-container.yml
+            # lists the same image inputs but only its own CI files.
             case "$path" in
               Dockerfile|.dockerignore|package.json|package-lock.json|tsconfig.json|src/*|.github/*) image=true ;;
             esac
@@ -101,10 +102,24 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/npm-consumer" --omit=dev --ignore-scripts --no-audit --no-fund "$release/package.tgz"
           npm run smoke -- "$RUNNER_TEMP/npm-consumer/node_modules/sportwizzard-mcp/dist/index.js" "$release/smoke.json" "$release/package.tgz"
 
-      # dist/httpServer.js is the container's entry point (the hosted server).
+      # The container runs dist/httpServer.js on Node 20 with the locked
+      # runtime dependencies (npm ci --omit=dev), so this smoke does the same.
+      - name: Use the image's Node.js major version
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '20'
+          package-manager-cache: false
+
       - name: Start the hosted HTTP entry point against the mock API
         shell: bash
-        run: npm run smoke:http -- "$RUNNER_TEMP/npm-consumer/node_modules/sportwizzard-mcp/dist/httpServer.js" "$RUNNER_TEMP/npm-release/http-smoke.json"
+        run: |
+          set -euo pipefail
+          server="$RUNNER_TEMP/http-consumer"
+          mkdir -p "$server"
+          tar -xzf "$RUNNER_TEMP/npm-release/package.tgz" -C "$server" --strip-components=1
+          cp package-lock.json "$server/"
+          npm ci --prefix "$server" --omit=dev --ignore-scripts --no-audit --no-fund
+          npm run smoke:http -- "$server/dist/httpServer.js" "$RUNNER_TEMP/npm-release/http-smoke.json"
 
   image:
     name: Build the container image without pushing
