@@ -4,7 +4,7 @@
   "description": "Real-time sports betting data: odds, player props, edges and arbitrage from 35+ books and DFS apps.",
   "websiteUrl": "https://sportwizzard.com/developers",
   "repository": {
-    "url": "https://github.com/sportwizzard-admin/sportwizzard-mcp",
+    "url": "https://github.com/sportwizzard/sportwizzard-mcp",
     "source": "github"
   },
   "version": "0.3.1",

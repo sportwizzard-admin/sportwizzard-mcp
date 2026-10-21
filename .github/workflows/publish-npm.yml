@@ -13,7 +13,7 @@ concurrency:
 jobs:
   build:
     if: github.ref == 'refs/heads/main'
-    runs-on: [self-hosted, Linux, sportwizzard-ci]
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: read
@@ -34,8 +34,7 @@ jobs:
           package-manager-cache: false
 
       - name: Install npm with trusted publishing support
-        # The setup-node tool cache persists on the self-hosted runner; keep the
-        # job's npm out of it.
+        # Keep the job's npm out of the setup-node tool cache.
         shell: bash
         run: |
           set -euo pipefail
@@ -51,7 +50,7 @@ jobs:
           package_version="$(node -p "require('./package.json').version")"
           repository_url="$(node -p "require('./package.json').repository.url")"
           [[ "$package_name" == "sportwizzard-mcp" ]] || { echo 'Unexpected package name' >&2; exit 1; }
-          [[ "$repository_url" == "git+https://github.com/sportwizzard-admin/sportwizzard-mcp.git" ]] || { echo 'Unexpected npm repository URL' >&2; exit 1; }
+          [[ "$repository_url" == "git+https://github.com/sportwizzard/sportwizzard-mcp.git" ]] || { echo 'Unexpected npm repository URL' >&2; exit 1; }
           [[ "$package_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo 'Invalid package version' >&2; exit 1; }
           node --input-type=module <<'JS'
           import assert from 'node:assert/strict';
@@ -110,7 +109,7 @@ jobs:
   publish:
     needs: build
     if: github.ref == 'refs/heads/main'
-    runs-on: [self-hosted, Linux, sportwizzard-ci]
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       contents: read
@@ -124,8 +123,7 @@ jobs:
           package-manager-cache: false
 
       - name: Install the publishing CLI without lifecycle scripts
-        # The setup-node tool cache persists on the self-hosted runner; keep the
-        # job's npm out of it.
+        # Keep the job's npm out of the setup-node tool cache.
         shell: bash
         run: |
           set -euo pipefail

@@ -15,7 +15,7 @@ concurrency:
 jobs:
   changes:
     name: Find the changed inputs
-    runs-on: [self-hosted, Linux, sportwizzard-ci]
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       image: ${{ steps.diff.outputs.image }}
@@ -53,7 +53,7 @@ jobs:
 
   package:
     name: Build, pack and stdio-smoke the package
-    runs-on: [self-hosted, Linux, sportwizzard-ci]
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - name: Check out the pull-request test merge
@@ -78,7 +78,7 @@ jobs:
           const lock = JSON.parse(readFileSync('package-lock.json'));
           const registry = JSON.parse(readFileSync('server.json'));
           assert.equal(pkg.name, 'sportwizzard-mcp');
-          assert.equal(pkg.repository.url, 'git+https://github.com/sportwizzard-admin/sportwizzard-mcp.git');
+          assert.equal(pkg.repository.url, 'git+https://github.com/sportwizzard/sportwizzard-mcp.git');
           assert.match(pkg.version, /^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$/);
           assert.equal(lock.version, pkg.version);
           assert.equal(lock.packages[''].version, pkg.version);
@@ -125,7 +125,7 @@ jobs:
     name: Build the container image without pushing
     needs: changes
     if: needs.changes.outputs.image == 'true'
-    runs-on: [self-hosted, Linux, sportwizzard-ci]
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       contents: read
@@ -135,12 +135,9 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Use the runner host's persistent BuildKit
+      - name: Set up BuildKit on the GitHub-hosted runner
         id: buildx
         uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
-        with:
-          driver: remote
-          endpoint: unix:///run/sw-ci-buildkit/buildkitd.sock
 
       - name: Assemble tracked source only
         run: |
